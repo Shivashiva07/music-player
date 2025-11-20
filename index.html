@@ -106,12 +106,36 @@
   <audio id="audio"></audio>
 
   <script>
-    // Simple playlist. Replace 'src' with your URLs (CORS enabled) or local files when testing.
-    const tracks = [
-      {title: 'SoundHelix Song 1', artist:'SoundHelix', src:'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3', cover:''}
+    // Simple playlist (default). Replace 'src' with your URLs (CORS enabled) or local files when testing.
+    let tracks = [
+      {title: 'SoundHelix Song 1', artist:'SoundHelix', src:'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', cover:''},
       {title: 'SoundHelix Song 3', artist:'SoundHelix', src:'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3', cover:''},
       {title: 'SoundHelix Song 6', artist:'SoundHelix', src:'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3', cover:''}
     ];
+
+    // Optional: auto-load tracks from songs.json (keeps UI unchanged)
+    // Place a `songs.json` file alongside this index.html in your repo with content like:
+    // [
+    //   { "title": "My Song", "artist": "Me", "src": "songs/song1.mp3", "cover": "" },
+    //   ...
+    // ]
+    async function tryLoadSongsJSON(){
+      try{
+        const resp = await fetch('songs.json', {cache: 'no-store'});
+        if(!resp.ok) return; // no songs.json present
+        const data = await resp.json();
+        if(Array.isArray(data) && data.length>0){
+          // basic validation: ensure each item has src
+          const valid = data.filter(d=>d && d.src).map(d=>({
+            title: d.title || d.src.split('/').pop(),
+            artist: d.artist || 'Unknown',
+            src: d.src,
+            cover: d.cover || ''
+          }));
+          if(valid.length>0){ tracks = valid; console.info('Loaded playlist from songs.json'); }
+        }
+      }catch(e){ console.info('No songs.json or failed to load it:', e); }
+    }
 
     // DOM refs
     const audio = document.getElementById('audio');
@@ -227,8 +251,12 @@
       else if(e.code==='ArrowDown'){ audio.volume = Math.max(0, audio.volume - 0.05); vol.value = audio.volume; }
     });
 
-    // initial setup
-    buildPlaylist(); loadTrack(index);
+    // initial setup: try loading songs.json first, then build playlist from whichever tracks are available
+    (async()=>{
+      await tryLoadSongsJSON();
+      buildPlaylist();
+      loadTrack(index);
+    })();
 
     // drag & drop local files (optional)
     document.body.addEventListener('dragover', (e)=>{ e.preventDefault(); document.body.style.opacity=0.98; });
@@ -255,4 +283,3 @@
 
 </body>
 </html>
-
